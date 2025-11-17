@@ -1,4 +1,89 @@
-/* tag filter button + count styles */
+/* style.css - pastel, "少女" aesthetic and two-column-friendly styles (updated for tag filters + sort) */
+
+/* Theme variables (easy to tweak) */
+:root{
+  --bg-soft: #FFF8FB;
+  --card-bg: #ffffff;
+  --primary-pink: #ff7fbf;
+  --accent-2: #cfa4ff;
+  --muted: #6c6c72;
+  --badge-bg: #ffe6f2;
+  --badge-color: #7a2a4a;
+  --shadow: 0 8px 24px rgba(133,99,133,0.08);
+  --fav-gold: #ffc857;
+  --tag-bg: #fff0f7;
+  --tag-active-bg: #ffd6ee;
+  --tag-color: #8b3b57;
+}
+
+/* Fonts */
+body {
+  font-family: "Poppins", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, rgba(255,248,253,1) 0%, rgba(255,250,245,1) 100%);
+  color: #3a3a3a;
+}
+
+/* soft background helper class used in body tag */
+.bg-soft { background-color: var(--bg-soft); }
+
+/* Navbar */
+.custom-navbar {
+  background: linear-gradient(90deg, rgba(255,127,191,0.95), rgba(207,164,255,0.92));
+  color: white;
+  padding: .6rem 1rem;
+  border-radius: 12px;
+  margin: .5rem 0;
+  box-shadow: var(--shadow);
+}
+.custom-navbar .navbar-brand {
+  color: white;
+  font-weight: 600;
+}
+.brand-icon { font-size: 1.2rem; }
+.brand-text { font-size: 1.05rem; }
+
+/* Add card */
+.add-card {
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,248,253,0.9));
+}
+
+/* Cards */
+.item-card {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-bg);
+  box-shadow: 0 6px 18px rgba(124,97,122,0.06);
+}
+.item-card .card-body {
+  padding: 1rem 1rem;
+  gap: 1rem;
+}
+
+/* Text area content */
+.item-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: .95rem;
+  color: #2f2f36;
+}
+
+/* Tags in item */
+.item-tags .badge {
+  background: var(--badge-bg);
+  color: var(--badge-color);
+  margin-right: .35rem;
+  border-radius: 10px;
+  padding: .25rem .5rem;
+  font-weight: 500;
+  font-size: .78rem;
+}
+
+/* Tag filter buttons below search */
+#tagFilters { gap: .5rem; }
 .btn-tag {
   background: var(--tag-bg);
   color: var(--tag-color);
@@ -6,19 +91,88 @@
   border-radius: 999px;
   padding: .25rem .6rem;
   font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-}
-.btn-tag .tag-count {
-  background: rgba(255,255,255,0.9);
-  color: var(--muted);
-  font-size: .78rem;
-  padding: .08rem .35rem;
-  border-radius: 6px;
+  text-transform: none;
 }
 .btn-tag.active {
   background: var(--tag-active-bg);
   color: #7a2a4a;
   box-shadow: 0 6px 14px rgba(255,184,197,0.08);
+}
+
+/* Buttons: custom pink */
+.btn-pink {
+  background: var(--primary-pink);
+  color: white;
+  border: none;
+  box-shadow: none;
+}
+.btn-pink:hover {
+  background: #ff69b4;
+}
+
+/* Button group sizing */
+.btn-group-vertical .btn {
+  min-width: 78px;
+  border-radius: 10px;
+}
+
+/* favorite button styles */
+.favorite-btn {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: #6c6c72;
+  min-width: 44px;
+  padding: .25rem .45rem;
+  border-radius: 10px;
+  font-size: 1.05rem;
+}
+.favorite-btn.favorited {
+  background: linear-gradient(90deg, var(--fav-gold), #ffb87a);
+  color: white;
+  border: none;
+  box-shadow: 0 6px 14px rgba(255,184,77,0.14);
+}
+
+/* Make vertical group more compact on small screens and stacked on xs */
+@media (max-width: 575.98px) {
+  .btn-group-vertical {
+    display: flex;
+    flex-direction: row;
+    gap: .4rem;
+  }
+  .btn-group-vertical .btn { min-width: auto; padding: .3rem .5rem; font-size: .85rem; }
+}
+
+/* Make two-column cards look balanced */
+.item-col { display: flex; }
+.item-col .item-card { width: 100%; }
+
+/* Hover effect */
+.item-card:hover {
+  transform: translateY(-4px);
+  transition: transform .12s ease;
+  box-shadow: 0 12px 30px rgba(120,82,120,0.08);
+}
+
+/* Small styling tweaks */
+.footer {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+/* Modal tweaks */
+.modal-content {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Focus states */
+.form-control:focus {
+  box-shadow: 0 0 0 0.15rem rgba(255,127,191,0.15);
+  border-color: rgba(207,164,255,0.6);
+}
+
+/* Utility: soften outline for buttons */
+.btn:focus {
+  box-shadow: 0 4px 14px rgba(207,164,255,0.08);
 }
