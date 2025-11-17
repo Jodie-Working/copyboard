@@ -1,27 +1,28 @@
 :root {
-  --bg: #fafafa;
-  --card: #fff;
-  --text: #222;
-  --muted: #777;
-  --primary: #2962ff;
-  --secondary: #455a64;
-  --danger: #c62828;
-  --border: #e0e0e0;
-  --tag: #eeeeee;
-  --active: #ffd54f;
+  /* 莫蘭迪色系主色調 */
+  --bg: #f6f5f3;          /* 背景米灰 */
+  --card: #ffffff;        /* 卡片白 */
+  --text: #3e3e3e;        /* 深灰文字 */
+  --muted: #7d7d7d;       /* 淺灰文字 */
+  --primary: #a3b18a;     /* 莫蘭迪灰綠 */
+  --secondary: #9a8c98;   /* 莫蘭迪灰紫 */
+  --danger: #b5838d;      /* 莫蘭迪灰粉紅 */
+  --border: #dcdcdc;      /* 邊框灰 */
+  --tag: #e8e8e8;         /* 標籤灰 */
+  --active: #ccd5ae;      /* 活躍灰綠 */
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, "Hiragino Sans", "Microsoft JhengHei", sans-serif;
+  font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   background: var(--bg);
   color: var(--text);
 }
 
 .container { max-width: 960px; margin: 0 auto; padding: 16px; }
 
-h1, h2 { margin: 8px 0 12px 0; }
+h1, h2 { margin: 8px 0 12px 0; color: var(--secondary); }
 .header, .footer { color: var(--muted); }
 
 .controls {
@@ -37,9 +38,9 @@ input[type="text"] {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px; background: #fff; color: var(--text);
-  cursor: pointer;
+  cursor: pointer; transition: background 0.2s ease;
 }
-.btn:hover { background: #f3f3f3; }
+.btn:hover { background: #f0f0f0; }
 .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
 .btn-secondary { background: var(--secondary); color: #fff; border-color: var(--secondary); }
 .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
@@ -51,9 +52,9 @@ input[type="text"] {
 .btn-tag {
   background: var(--tag); border-color: var(--border);
   padding: 6px 10px; border-radius: 16px;
-  font-size: 14px;
+  font-size: 14px; color: var(--text);
 }
-.btn-tag.active { background: var(--active); }
+.btn-tag.active { background: var(--active); color: #fff; }
 
 .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 
@@ -61,6 +62,7 @@ input[type="text"] {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 12px; padding: 12px;
   display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 .card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -72,7 +74,7 @@ input[type="text"] {
 
 .icon-btn {
   border: none; background: transparent; cursor: pointer;
-  font-size: 16px; padding: 4px 6px; border-radius: 6px;
+  font-size: 18px; padding: 4px 6px; border-radius: 6px;
 }
 .icon-btn:hover { background: #f3f3f3; }
 
