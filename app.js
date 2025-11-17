@@ -1,75 +1,281 @@
-// 假設全局有 items 陣列，每個 item 有 tags 屬性
-// 假設全局有 selectedTags (Set) 同 tagFiltersEl (DOM 元素)
+// app.js for Copy Board - added favorite/star functionality (delegation + modal edit)
+(() => {
+  const STORAGE_KEY = 'copyBoard.items';
+  const itemsEl = document.getElementById('items');
+  const template = document.getElementById('itemTemplate');
+  const addBtn = document.getElementById('addBtn');
+  const newText = document.getElementById('newText');
+  const newTags = document.getElementById('newTags');
+  const searchInput = document.getElementById('searchInput');
+  const exportBtn = document.getElementById('exportBtn');
+  const importFile = document.getElementById('importFile');
+  const clearAllBtn = document.getElementById('clearAllBtn');
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, function(m) {
-    return ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    })[m];
-  });
-}
+  const editModalEl = document.getElementById('editModal');
+  const bootstrapModal = new bootstrap.Modal(editModalEl);
+  const editText = document.getElementById('editText');
+  const editTags = document.getElementById('editTags');
+  const editItemId = document.getElementById('editItemId');
+  const saveEditBtn = document.getElementById('saveEditBtn');
 
-function renderTagFilters() {
-  // 建立 tag => {count, labelExample} 嘅 map
-  const tagMap = new Map();
+  let items = loadItems();
 
-  items.forEach(it => {
-    (it.tags || []).forEach(rawTag => {
-      const tag = String(rawTag || '').trim();
-      if (!tag) return;
-      const key = tag.toLowerCase(); // 用小寫 key 做比較
-      const existing = tagMap.get(key);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        tagMap.set(key, { count: 1, label: tag });
-      }
-    });
-  });
-
-  // 轉成陣列並排序：先按 count desc，再按 label
-  const tags = Array.from(tagMap.entries()).map(([key, val]) => ({
-    key,
-    label: val.label,
-    count: val.count
-  }));
-
-  tags.sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return a.label.localeCompare(b.label, 'zh-HK');
-  });
-
-  // 清空 DOM
-  tagFiltersEl.innerHTML = '';
-
-  if (tags.length === 0) {
-    tagFiltersEl.innerHTML = '<div class="text-muted small">尚未有標籤</div>';
-    return;
+  function loadItems() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      // ensure each item has favorite boolean
+      return parsed.map(p => ({
+        id: p.id || uid(),
+        text: String(p.text || '').trim(),
+        tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
+        favorite: Boolean(p.favorite),
+        createdAt: p.createdAt || new Date().toISOString(),
+        updatedAt: p.updatedAt || ''
+      })).filter(i => i.text);
+    } catch (e) {
+      console.error('Load items failed', e);
+      return [];
+    }
   }
 
-  // 建立每個 tag 按鈕
-  tags.forEach(t => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-tag btn-sm';
-    btn.dataset.tag = t.key; // 用小寫 key 做比較
-    btn.innerHTML = `<span class="tag-label">${escapeHtml(t.label)}</span> 
-                     <span class="tag-count badge bg-white text-muted ms-2">${t.count}</span>`;
-    if (selectedTags.has(t.key)) {
-      btn.classList.add('active');
+  function saveItems() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Save items failed', e);
     }
-    tagFiltersEl.appendChild(btn);
+  }
+
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function parseTags(text) {
+    if (!text) return [];
+    if (Array.isArray(text)) return text.map(t => String(t).trim()).filter(Boolean);
+    return String(text).split(',').map(t => t.trim()).filter(Boolean);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function renderItems() {
+    const q = searchInput.value.trim().toLowerCase();
+    itemsEl.innerHTML = '';
+
+    // Filtering first
+    const filtered = items.filter(item => {
+      if (!q) return true;
+      if (item.text && item.text.toLowerCase().includes(q)) return true;
+      if ((item.tags || []).some(t => t.toLowerCase().includes(q))) return true;
+      return false;
+    });
+
+    // Sort: favorites first, then newest first (createdAt)
+    filtered.sort((a, b) => {
+      if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) {
+        return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    if (filtered.length === 0) {
+      itemsEl.innerHTML = `<div class="col-12"><div class="text-muted small">無相符項目</div></div>`;
+      return;
+    }
+
+    filtered.forEach(item => {
+      const node = template.content.cloneNode(true);
+      const col = node.querySelector('.item-col');
+      const textP = node.querySelector('.item-text');
+      const tagsDiv = node.querySelector('.item-tags');
+      const favBtn = node.querySelector('.favorite-btn');
+
+      // attach id for delegation
+      col.dataset.itemId = item.id;
+
+      textP.textContent = item.text || '';
+      tagsDiv.innerHTML = (item.tags || []).map(t => `<span class="badge bg-secondary me-1">${escapeHtml(t)}</span>`).join(' ');
+
+      // favorite button visual
+      if (favBtn) {
+        if (item.favorite) {
+          favBtn.textContent = '★';
+          favBtn.classList.add('favorited');
+          favBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          favBtn.textContent = '☆';
+          favBtn.classList.remove('favorited');
+          favBtn.setAttribute('aria-pressed', 'false');
+        }
+      }
+
+      itemsEl.appendChild(node);
+    });
+  }
+
+  // Event delegation for copy / edit / delete / favorite
+  itemsEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const col = btn.closest('.item-col');
+    if (!col) return;
+    const id = col.dataset.itemId;
+    const itemIndex = items.findIndex(i => i.id === id);
+    if (itemIndex === -1) return;
+    const item = items[itemIndex];
+
+    if (btn.classList.contains('favorite-btn')) {
+      // toggle favorite
+      items[itemIndex].favorite = !items[itemIndex].favorite;
+      items[itemIndex].updatedAt = new Date().toISOString();
+      saveItems();
+      renderItems();
+      return;
+    }
+
+    if (btn.classList.contains('copy-btn')) {
+      // Copy text
+      try {
+        await navigator.clipboard.writeText(item.text);
+        const old = btn.textContent;
+        btn.textContent = '已複製';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+          btn.textContent = old;
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-secondary');
+        }, 1200);
+      } catch (err) {
+        console.error('copy failed', err);
+        alert('複製失敗：瀏覽器不支援剪貼簿或權限被拒絕');
+      }
+      return;
+    }
+
+    if (btn.classList.contains('delete-btn')) {
+      if (!confirm('確定要刪除此條目？')) return;
+      items = items.filter(i => i.id !== id);
+      saveItems();
+      renderItems();
+      return;
+    }
+
+    if (btn.classList.contains('edit-btn')) {
+      // open modal with values
+      editItemId.value = item.id;
+      editText.value = item.text || '';
+      editTags.value = (item.tags || []).join(', ');
+      bootstrapModal.show();
+      return;
+    }
   });
 
-  // 加「清除已選標籤」按鈕
-  const clear = document.createElement('button');
-  clear.type = 'button';
-  clear.className = 'btn btn-outline-secondary btn-sm ms-2';
-  clear.id = 'clearSelectedTagsBtn';
-  clear.textContent = '清除已選標籤';
-  tagFiltersEl.appendChild(clear);
-}
+  // Save edited item
+  saveEditBtn.addEventListener('click', () => {
+    const id = editItemId.value;
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) {
+      alert('找不到要編輯的項目');
+      bootstrapModal.hide();
+      return;
+    }
+    const newTextVal = editText.value.trim();
+    if (!newTextVal) {
+      alert('內容不能為空');
+      return;
+    }
+    const newTags = parseTags(editTags.value);
+    items[idx].text = newTextVal;
+    items[idx].tags = newTags;
+    items[idx].updatedAt = new Date().toISOString();
+    saveItems();
+    bootstrapModal.hide();
+    renderItems();
+  });
+
+  // Add new item
+  addBtn.addEventListener('click', () => {
+    const text = newText.value.trim();
+    if (!text) {
+      alert('請輸入要儲存的文字');
+      return;
+    }
+    const tags = parseTags(newTags.value);
+    const item = { id: uid(), text, tags, favorite: false, createdAt: new Date().toISOString() };
+    items.unshift(item);
+    saveItems();
+    newText.value = '';
+    newTags.value = '';
+    renderItems();
+  });
+
+  // Search
+  searchInput.addEventListener('input', () => {
+    renderItems();
+  });
+
+  // Export
+  exportBtn.addEventListener('click', () => {
+    const dataStr = JSON.stringify(items, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'copy-board-export.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // Import
+  importFile.addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        let array = [];
+        if (Array.isArray(parsed)) array = parsed;
+        else if (parsed && Array.isArray(parsed.items)) array = parsed.items;
+        else throw new Error('JSON 必須是一個陣列或包含 items 陣列的物件');
+
+        const sanitized = array.map(p => ({
+          id: p.id || uid(),
+          text: String(p.text || '').trim(),
+          tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
+          favorite: Boolean(p.favorite),
+          createdAt: p.createdAt || new Date().toISOString()
+        })).filter(i => i.text);
+
+        // prepend imported items
+        items = sanitized.concat(items);
+        saveItems();
+        renderItems();
+        importFile.value = '';
+        alert('匯入完成');
+      } catch (err) {
+        console.error('import failed', err);
+        alert('匯入失敗：' + (err.message || '無效的 JSON'));
+      }
+    };
+    reader.readAsText(f, 'utf-8');
+  });
+
+  // Clear all
+  clearAllBtn.addEventListener('click', () => {
+    if (!confirm('確定要清除所有儲存？此動作無法復原。')) return;
+    items = [];
+    saveItems();
+    renderItems();
+  });
+
+  // initial render
+  renderItems();
+})();
