@@ -3,8 +3,9 @@
 // - Tags filter, search
 // - Pin (star) to top
 // - Import / Export JSON
+// - Copy count tracking
 
-const STORAGE_KEY = 'copyboard_items_v1';
+const STORAGE_KEY = 'copyboard_items_v2';
 
 // State
 let items = [];
@@ -50,7 +51,8 @@ function load() {
       text: String(it.text ?? '').trim(),
       tags: Array.isArray(it.tags) ? it.tags.map(t => String(t).trim()).filter(Boolean) : [],
       pinned: Boolean(it.pinned),
-      createdAt: typeof it.createdAt === 'number' ? it.createdAt : Date.now()
+      createdAt: typeof it.createdAt === 'number' ? it.createdAt : Date.now(),
+      copyCount: typeof it.copyCount === 'number' ? it.copyCount : 0
     }));
   } catch (e) {
     console.error('Load failed', e);
@@ -105,7 +107,6 @@ function renderTagFilters() {
       if (selectedTags.has(t.key)) selectedTags.delete(t.key);
       else selectedTags.add(t.key);
       renderItems();
-      // keep filter UI in sync
       renderTagFilters();
     });
     tagFiltersEl.appendChild(btn);
@@ -135,11 +136,16 @@ function renderItems() {
   });
 
   filtered.sort((a, b) => {
+    // 先按置頂
     if (pinnedFirst) {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
     }
-    // newest first
+    // 再按 copyCount
+    if ((b.copyCount || 0) !== (a.copyCount || 0)) {
+      return (b.copyCount || 0) - (a.copyCount || 0);
+    }
+    // 最後按建立時間
     return b.createdAt - a.createdAt;
   });
 
@@ -158,7 +164,8 @@ function renderItems() {
 
     const title = document.createElement('div');
     title.innerHTML = `<div>${escapeHtml(it.text)}</div>
-                       <div class="text-muted small">${new Date(it.createdAt).toLocaleString()}</div>`;
+                       <div class="text-muted small">建立時間：${new Date(it.createdAt).toLocaleString()}</div>
+                       <div class="text-muted small">複製次數：${it.copyCount || 0}</div>`;
 
     const starBtn = document.createElement('button');
     starBtn.className = 'icon-btn';
@@ -198,8 +205,9 @@ function renderItems() {
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(it.text);
-        copyBtn.textContent = '已複製！';
-        setTimeout(() => (copyBtn.textContent = '複製'), 1000);
+        it.copyCount = (it.copyCount || 0) + 1; // 每次複製 +1
+        save();
+        render();
       } catch (e) {
         alert('複製失敗：' + e.message);
       }
@@ -233,104 +241,4 @@ function renderItems() {
       render();
     });
 
-    actions.appendChild(copyBtn);
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
-
-    card.appendChild(header);
-    card.appendChild(tagsEl);
-    card.appendChild(actions);
-
-    itemsListEl.appendChild(card);
-  });
-}
-
-// Events
-searchInput.addEventListener('input', e => {
-  searchText = e.target.value || '';
-  renderItems();
-});
-
-togglePinnedFirstBtn.addEventListener('click', () => {
-  pinnedFirst = !pinnedFirst;
-  togglePinnedFirstBtn.textContent = `置頂優先：${pinnedFirst ? '開' : '關'}`;
-  renderItems();
-});
-
-addBtn.addEventListener('click', () => {
-  const text = String(newTextInput.value || '').trim();
-  const tagsStr = String(newTagsInput.value || '').trim();
-
-  if (!text) {
-    alert('請輸入文字');
-    return;
-  }
-  const tags = tagsStr
-    ? tagsStr.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
-
-  const item = {
-    id: uuid(),
-    text,
-    tags,
-    pinned: false,
-    createdAt: Date.now()
-  };
-  items.unshift(item); // add to top
-  save();
-  newTextInput.value = '';
-  newTagsInput.value = '';
-  render();
-});
-
-clearAllBtn.addEventListener('click', () => {
-  if (!confirm('確定清空全部詞條？此操作不可復原。')) return;
-  items = [];
-  save();
-  render();
-});
-
-exportBtn.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `copyboard-backup-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-importFileInput.addEventListener('change', async e => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if (!Array.isArray(data)) throw new Error('JSON 需為陣列');
-    // 合併策略：保留現有 + 加入新（id 重複會覆蓋）
-    const byId = new Map(items.map(it => [it.id, it]));
-    data.forEach(it => {
-      const normalized = {
-        id: it.id ?? uuid(),
-        text: String(it.text ?? '').trim(),
-        tags: Array.isArray(it.tags) ? it.tags.map(t => String(t).trim()).filter(Boolean) : [],
-        pinned: Boolean(it.pinned),
-        createdAt: typeof it.createdAt === 'number' ? it.createdAt : Date.now()
-      };
-      byId.set(normalized.id, normalized);
-    });
-    items = Array.from(byId.values()).sort((a, b) => b.createdAt - a.createdAt);
-    save();
-    render();
-    importFileInput.value = ''; // reset
-    alert('匯入完成');
-  } catch (err) {
-    alert('匯入失敗：' + err.message);
-  }
-});
-
-// Init
-load();
-render();
+    actions.appendChild(copyBtn
