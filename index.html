@@ -29,35 +29,15 @@
   </nav>
 
   <main class="container">
-    <!-- search row + sort -->
-    <div class="row mb-2 align-items-center">
-      <div class="col-md-7">
+    <div class="row mb-3 align-items-center">
+      <div class="col-md-8">
         <input id="searchInput" type="search" class="form-control form-control-lg" placeholder="搜尋（輸入文字或標籤）">
       </div>
-      <div class="col-md-3 mt-2 mt-md-0">
-        <select id="sortSelect" class="form-select form-select-sm">
-          <option value="favorites" selected>收藏優先（預設）</option>
-          <option value="newest">依新增時間（最新）</option>
-          <option value="oldest">依新增時間（最舊）</option>
-          <option value="alpha-asc">字母排序（A → Z）</option>
-          <option value="alpha-desc">字母排序（Z → A）</option>
-        </select>
-      </div>
-      <div class="col-md-2 text-md-end mt-2 mt-md-0">
+      <div class="col-md-4 text-md-end mt-2 mt-md-0">
         <button id="clearAllBtn" class="btn btn-outline-danger btn-sm">清除所有</button>
       </div>
     </div>
 
-    <!-- tag filters row -->
-    <div class="row mb-3">
-      <div class="col-12">
-        <div id="tagFilters" class="d-flex flex-wrap gap-2 align-items-center">
-          <!-- tags rendered here -->
-        </div>
-      </div>
-    </div>
-
-    <!-- add card -->
     <div class="row mb-3">
       <div class="col-12">
         <div class="card p-3 add-card">
@@ -68,7 +48,6 @@
           <div class="mb-2 d-flex gap-2">
             <input id="newTags" class="form-control form-control-sm" placeholder="標籤（用逗號 , 分隔，選填）">
             <button id="addBtn" class="btn btn-pink btn-sm">新增</button>
-            <button id="clearTagsBtn" class="btn btn-outline-secondary btn-sm" title="清除目前已選標籤">清除標籤</button>
           </div>
           <div class="text-muted small">提示：點擊「複製」會把文字放到剪貼簿並短暫顯示已複製提示。</div>
         </div>
