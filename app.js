@@ -1,367 +1,53 @@
-// app.js - add sorting + tag quick-filter under search (works with favorite and modal edit)
-(() => {
-  const STORAGE_KEY = 'copyBoard.items';
-  const itemsEl = document.getElementById('items');
-  const template = document.getElementById('itemTemplate');
-  const addBtn = document.getElementById('addBtn');
-  const newText = document.getElementById('newText');
-  const newTags = document.getElementById('newTags');
-  const searchInput = document.getElementById('searchInput');
-  const exportBtn = document.getElementById('exportBtn');
-  const importFile = document.getElementById('importFile');
-  const clearAllBtn = document.getElementById('clearAllBtn');
-  const clearTagsBtn = document.getElementById('clearTagsBtn');
-  const sortSelect = document.getElementById('sortSelect');
-  const tagFiltersEl = document.getElementById('tagFilters');
-
-  const editModalEl = document.getElementById('editModal');
-  const bootstrapModal = new bootstrap.Modal(editModalEl);
-  const editText = document.getElementById('editText');
-  const editTags = document.getElementById('editTags');
-  const editItemId = document.getElementById('editItemId');
-  const saveEditBtn = document.getElementById('saveEditBtn');
-
-  let items = loadItems();
-  // selected tags set (store lowercase keys)
-  let selectedTags = new Set();
-
-  function loadItems() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return parsed.map(p => ({
-        id: p.id || uid(),
-        text: String(p.text || '').trim(),
-        tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
-        favorite: Boolean(p.favorite),
-        createdAt: p.createdAt || new Date().toISOString(),
-        updatedAt: p.updatedAt || ''
-      })).filter(i => i.text);
-    } catch (e) {
-      console.error('Load items failed', e);
-      return [];
-    }
-  }
-
-  function saveItems() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch (e) {
-      console.error('Save items failed', e);
-    }
-  }
-
-  function uid() {
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  }
-
-  function parseTags(text) {
-    if (!text) return [];
-    if (Array.isArray(text)) return text.map(t => String(t).trim()).filter(Boolean);
-    return String(text).split(',').map(t => t.trim()).filter(Boolean);
-  }
-
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
-  // Build the tag filter UI based on all items' tags (unique)
-  function renderTagFilters() {
-    const allTags = new Set();
-    items.forEach(it => (it.tags || []).forEach(t => allTags.add(String(t).trim()).toLowerCase()));
-    const tags = Array.from(allTags).filter(Boolean).sort((a,b) => a.localeCompare(b, 'zh-HK')); // sorted
-
-    tagFiltersEl.innerHTML = '';
-    if (tags.length === 0) {
-      tagFiltersEl.innerHTML = '<div class="text-muted small">尚未有標籤</div>';
-      return;
-    }
-
-    tags.forEach(t => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-tag btn-sm';
-      btn.dataset.tag = t;
-      btn.textContent = t;
-      if (selectedTags.has(t)) {
-        btn.classList.add('active');
-      }
-      tagFiltersEl.appendChild(btn);
-    });
-
-    // show clear button inline
-    const clear = document.createElement('button');
-    clear.type = 'button';
-    clear.className = 'btn btn-outline-secondary btn-sm ms-2';
-    clear.id = 'clearSelectedTagsBtn';
-    clear.textContent = '清除已選標籤';
-    tagFiltersEl.appendChild(clear);
-  }
-
-  function renderItems() {
-    const q = searchInput.value.trim().toLowerCase();
-    // rebuild tag filter UI
-    renderTagFilters();
-
-    itemsEl.innerHTML = '';
-
-    // Filtering
-    const filtered = items.filter(item => {
-      if (q) {
-        const textMatch = item.text && item.text.toLowerCase().includes(q);
-        const tagMatch = (item.tags || []).some(t => String(t).toLowerCase().includes(q));
-        if (!(textMatch || tagMatch)) return false;
-      }
-      if (selectedTags.size > 0) {
-        // require item has at least one of selected tags (OR logic)
-        const has = (item.tags || []).some(t => selectedTags.has(String(t).toLowerCase()));
-        if (!has) return false;
-      }
-      return true;
-    });
-
-    // Sorting: favorites first by default, then according to sortSelect
-    const sortMode = sortSelect?.value || 'favorites';
-    filtered.sort((a, b) => {
-      // favorites prioritize if sortMode is 'favorites' or as secondary key for others
-      if (sortMode === 'favorites') {
-        if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-      // for other modes, still bias favorites above non-favorites as top priority
-      if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-
-      switch (sortMode) {
-        case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'alpha-asc':
-          return (a.text || '').localeCompare(b.text || '', 'zh-HK');
-        case 'alpha-desc':
-          return (b.text || '').localeCompare(a.text || '', 'zh-HK');
-        default:
-          return 0;
+// --- replace existing renderTagFilters() in app.js with this version ---
+function renderTagFilters() {
+  // build a map of tag => {count, labelExample}
+  const tagMap = new Map();
+  items.forEach(it => {
+    (it.tags || []).forEach(rawTag => {
+      const tag = String(rawTag || '').trim();
+      if (!tag) return;
+      const key = tag.toLowerCase();
+      const existing = tagMap.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        // store original-cased example and count
+        tagMap.set(key, { count: 1, label: tag });
       }
     });
+  });
 
-    if (filtered.length === 0) {
-      itemsEl.innerHTML = `<div class="col-12"><div class="text-muted small">無相符項目</div></div>`;
-      return;
-    }
+  // convert to array and sort by count desc then name
+  const tags = Array.from(tagMap.entries()).map(([key, val]) => ({ key, label: val.label, count: val.count }));
+  tags.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.label.localeCompare(b.label, 'zh-HK');
+  });
 
-    filtered.forEach(item => {
-      const node = template.content.cloneNode(true);
-      const col = node.querySelector('.item-col');
-      const textP = node.querySelector('.item-text');
-      const tagsDiv = node.querySelector('.item-tags');
-      const favBtn = node.querySelector('.favorite-btn');
-
-      // attach id for delegation
-      col.dataset.itemId = item.id;
-
-      textP.textContent = item.text || '';
-      tagsDiv.innerHTML = (item.tags || []).map(t => `<span class="badge bg-secondary me-1">${escapeHtml(t)}</span>`).join(' ');
-
-      // favorite button visual
-      if (favBtn) {
-        if (item.favorite) {
-          favBtn.textContent = '★';
-          favBtn.classList.add('favorited');
-          favBtn.setAttribute('aria-pressed', 'true');
-        } else {
-          favBtn.textContent = '☆';
-          favBtn.classList.remove('favorited');
-          favBtn.setAttribute('aria-pressed', 'false');
-        }
-      }
-
-      itemsEl.appendChild(node);
-    });
+  tagFiltersEl.innerHTML = '';
+  if (tags.length === 0) {
+    tagFiltersEl.innerHTML = '<div class="text-muted small">尚未有標籤</div>';
+    return;
   }
 
-  // Event delegation for copy / edit / delete / favorite / tag clicks
-  itemsEl.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const col = btn.closest('.item-col');
-    if (!col) return;
-    const id = col.dataset.itemId;
-    const itemIndex = items.findIndex(i => i.id === id);
-    if (itemIndex === -1) return;
-    const item = items[itemIndex];
-
-    if (btn.classList.contains('favorite-btn')) {
-      // toggle favorite
-      items[itemIndex].favorite = !items[itemIndex].favorite;
-      items[itemIndex].updatedAt = new Date().toISOString();
-      saveItems();
-      renderItems();
-      return;
+  tags.forEach(t => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-tag btn-sm';
+    btn.dataset.tag = t.key; // use lowercase key for comparisons
+    // show label + count badge
+    btn.innerHTML = `<span class="tag-label">${escapeHtml(t.label)}</span> <span class="tag-count badge bg-white text-muted ms-2">${t.count}</span>`;
+    if (selectedTags.has(t.key)) {
+      btn.classList.add('active');
     }
-
-    if (btn.classList.contains('copy-btn')) {
-      try {
-        await navigator.clipboard.writeText(item.text);
-        const old = btn.textContent;
-        btn.textContent = '已複製';
-        btn.classList.remove('btn-outline-secondary');
-        btn.classList.add('btn-success');
-        setTimeout(() => {
-          btn.textContent = old;
-          btn.classList.remove('btn-success');
-          btn.classList.add('btn-outline-secondary');
-        }, 1200);
-      } catch (err) {
-        console.error('copy failed', err);
-        alert('複製失敗：瀏覽器不支援剪貼簿或權限被拒絕');
-      }
-      return;
-    }
-
-    if (btn.classList.contains('delete-btn')) {
-      if (!confirm('確定要刪除此條目？')) return;
-      items = items.filter(i => i.id !== id);
-      saveItems();
-      renderItems();
-      return;
-    }
-
-    if (btn.classList.contains('edit-btn')) {
-      editItemId.value = item.id;
-      editText.value = item.text || '';
-      editTags.value = (item.tags || []).join(', ');
-      bootstrapModal.show();
-      return;
-    }
+    tagFiltersEl.appendChild(btn);
   });
 
-  // Tag filters click (delegation)
-  tagFiltersEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('button.btn-tag');
-    if (!btn) return;
-    const tag = btn.dataset.tag;
-    if (!tag) return;
-    if (selectedTags.has(tag)) selectedTags.delete(tag);
-    else selectedTags.add(tag);
-    // re-render
-    renderItems();
-  });
-
-  // Clear selected tags button under tagFilters
-  tagFiltersEl.addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'clearSelectedTagsBtn') {
-      selectedTags.clear();
-      renderItems();
-    }
-  });
-
-  clearTagsBtn?.addEventListener('click', () => {
-    selectedTags.clear();
-    renderItems();
-  });
-
-  // Save edited item
-  saveEditBtn.addEventListener('click', () => {
-    const id = editItemId.value;
-    const idx = items.findIndex(i => i.id === id);
-    if (idx === -1) {
-      alert('找不到要編輯的項目');
-      bootstrapModal.hide();
-      return;
-    }
-    const newTextVal = editText.value.trim();
-    if (!newTextVal) {
-      alert('內容不能為空');
-      return;
-    }
-    const newTags = parseTags(editTags.value);
-    items[idx].text = newTextVal;
-    items[idx].tags = newTags;
-    items[idx].updatedAt = new Date().toISOString();
-    saveItems();
-    bootstrapModal.hide();
-    renderItems();
-  });
-
-  // Add new item
-  addBtn.addEventListener('click', () => {
-    const text = newText.value.trim();
-    if (!text) {
-      alert('請輸入要儲存的文字');
-      return;
-    }
-    const tags = parseTags(newTags.value);
-    const item = { id: uid(), text, tags, favorite: false, createdAt: new Date().toISOString() };
-    items.unshift(item);
-    saveItems();
-    newText.value = '';
-    newTags.value = '';
-    renderItems();
-  });
-
-  // Search and sort listeners
-  searchInput.addEventListener('input', () => renderItems());
-  sortSelect.addEventListener('change', () => renderItems());
-
-  // Export
-  exportBtn.addEventListener('click', () => {
-    const dataStr = JSON.stringify(items, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'copy-board-export.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
-
-  // Import
-  importFile.addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        let array = [];
-        if (Array.isArray(parsed)) array = parsed;
-        else if (parsed && Array.isArray(parsed.items)) array = parsed.items;
-        else throw new Error('JSON 必須是一個陣列或包含 items 陣列的物件');
-
-        const sanitized = array.map(p => ({
-          id: p.id || uid(),
-          text: String(p.text || '').trim(),
-          tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
-          favorite: Boolean(p.favorite),
-          createdAt: p.createdAt || new Date().toISOString()
-        })).filter(i => i.text);
-
-        // prepend imported items
-        items = sanitized.concat(items);
-        saveItems();
-        renderItems();
-        importFile.value = '';
-        alert('匯入完成');
-      } catch (err) {
-        console.error('import failed', err);
-        alert('匯入失敗：' + (err.message || '無效的 JSON'));
-      }
-    };
-    reader.readAsText(f, 'utf-8');
-  });
-
-  // Clear all
-  clearAllBtn.addEventListener('click', () => {
-    if (!confirm('確定要清除所有儲存？此動作無法復原。')) return;
-    items = [];
-    saveItems();
-    renderItems();
-  });
-
-  // initial render
-  renderItems();
-})();
+  // clear selected tags button
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'btn btn-outline-secondary btn-sm ms-2';
+  clear.id = 'clearSelectedTagsBtn';
+  clear.textContent = '清除已選標籤';
+  tagFiltersEl.appendChild(clear);
+}
