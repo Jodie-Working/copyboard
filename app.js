@@ -1,4 +1,4 @@
-// app.js for Copy Board - added favorite/star functionality (delegation + modal edit)
+// app.js - add sorting + tag quick-filter under search (works with favorite and modal edit)
 (() => {
   const STORAGE_KEY = 'copyBoard.items';
   const itemsEl = document.getElementById('items');
@@ -10,6 +10,9 @@
   const exportBtn = document.getElementById('exportBtn');
   const importFile = document.getElementById('importFile');
   const clearAllBtn = document.getElementById('clearAllBtn');
+  const clearTagsBtn = document.getElementById('clearTagsBtn');
+  const sortSelect = document.getElementById('sortSelect');
+  const tagFiltersEl = document.getElementById('tagFilters');
 
   const editModalEl = document.getElementById('editModal');
   const bootstrapModal = new bootstrap.Modal(editModalEl);
@@ -19,12 +22,13 @@
   const saveEditBtn = document.getElementById('saveEditBtn');
 
   let items = loadItems();
+  // selected tags set (store lowercase keys)
+  let selectedTags = new Set();
 
   function loadItems() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
-      // ensure each item has favorite boolean
       return parsed.map(p => ({
         id: p.id || uid(),
         text: String(p.text || '').trim(),
@@ -62,24 +66,84 @@
     return String(str).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
-  function renderItems() {
-    const q = searchInput.value.trim().toLowerCase();
-    itemsEl.innerHTML = '';
+  // Build the tag filter UI based on all items' tags (unique)
+  function renderTagFilters() {
+    const allTags = new Set();
+    items.forEach(it => (it.tags || []).forEach(t => allTags.add(String(t).trim()).toLowerCase()));
+    const tags = Array.from(allTags).filter(Boolean).sort((a,b) => a.localeCompare(b, 'zh-HK')); // sorted
 
-    // Filtering first
-    const filtered = items.filter(item => {
-      if (!q) return true;
-      if (item.text && item.text.toLowerCase().includes(q)) return true;
-      if ((item.tags || []).some(t => t.toLowerCase().includes(q))) return true;
-      return false;
+    tagFiltersEl.innerHTML = '';
+    if (tags.length === 0) {
+      tagFiltersEl.innerHTML = '<div class="text-muted small">尚未有標籤</div>';
+      return;
+    }
+
+    tags.forEach(t => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-tag btn-sm';
+      btn.dataset.tag = t;
+      btn.textContent = t;
+      if (selectedTags.has(t)) {
+        btn.classList.add('active');
+      }
+      tagFiltersEl.appendChild(btn);
     });
 
-    // Sort: favorites first, then newest first (createdAt)
-    filtered.sort((a, b) => {
-      if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) {
-        return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+    // show clear button inline
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'btn btn-outline-secondary btn-sm ms-2';
+    clear.id = 'clearSelectedTagsBtn';
+    clear.textContent = '清除已選標籤';
+    tagFiltersEl.appendChild(clear);
+  }
+
+  function renderItems() {
+    const q = searchInput.value.trim().toLowerCase();
+    // rebuild tag filter UI
+    renderTagFilters();
+
+    itemsEl.innerHTML = '';
+
+    // Filtering
+    const filtered = items.filter(item => {
+      if (q) {
+        const textMatch = item.text && item.text.toLowerCase().includes(q);
+        const tagMatch = (item.tags || []).some(t => String(t).toLowerCase().includes(q));
+        if (!(textMatch || tagMatch)) return false;
       }
-      return new Date(b.createdAt) - new Date(a.createdAt);
+      if (selectedTags.size > 0) {
+        // require item has at least one of selected tags (OR logic)
+        const has = (item.tags || []).some(t => selectedTags.has(String(t).toLowerCase()));
+        if (!has) return false;
+      }
+      return true;
+    });
+
+    // Sorting: favorites first by default, then according to sortSelect
+    const sortMode = sortSelect?.value || 'favorites';
+    filtered.sort((a, b) => {
+      // favorites prioritize if sortMode is 'favorites' or as secondary key for others
+      if (sortMode === 'favorites') {
+        if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      // for other modes, still bias favorites above non-favorites as top priority
+      if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+
+      switch (sortMode) {
+        case 'newest':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'oldest':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'alpha-asc':
+          return (a.text || '').localeCompare(b.text || '', 'zh-HK');
+        case 'alpha-desc':
+          return (b.text || '').localeCompare(a.text || '', 'zh-HK');
+        default:
+          return 0;
+      }
     });
 
     if (filtered.length === 0) {
@@ -117,7 +181,7 @@
     });
   }
 
-  // Event delegation for copy / edit / delete / favorite
+  // Event delegation for copy / edit / delete / favorite / tag clicks
   itemsEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -138,7 +202,6 @@
     }
 
     if (btn.classList.contains('copy-btn')) {
-      // Copy text
       try {
         await navigator.clipboard.writeText(item.text);
         const old = btn.textContent;
@@ -166,13 +229,37 @@
     }
 
     if (btn.classList.contains('edit-btn')) {
-      // open modal with values
       editItemId.value = item.id;
       editText.value = item.text || '';
       editTags.value = (item.tags || []).join(', ');
       bootstrapModal.show();
       return;
     }
+  });
+
+  // Tag filters click (delegation)
+  tagFiltersEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button.btn-tag');
+    if (!btn) return;
+    const tag = btn.dataset.tag;
+    if (!tag) return;
+    if (selectedTags.has(tag)) selectedTags.delete(tag);
+    else selectedTags.add(tag);
+    // re-render
+    renderItems();
+  });
+
+  // Clear selected tags button under tagFilters
+  tagFiltersEl.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'clearSelectedTagsBtn') {
+      selectedTags.clear();
+      renderItems();
+    }
+  });
+
+  clearTagsBtn?.addEventListener('click', () => {
+    selectedTags.clear();
+    renderItems();
   });
 
   // Save edited item
@@ -214,10 +301,9 @@
     renderItems();
   });
 
-  // Search
-  searchInput.addEventListener('input', () => {
-    renderItems();
-  });
+  // Search and sort listeners
+  searchInput.addEventListener('input', () => renderItems());
+  sortSelect.addEventListener('change', () => renderItems());
 
   // Export
   exportBtn.addEventListener('click', () => {
