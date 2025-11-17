@@ -47,5 +47,24 @@
   </footer>
 
   <script src="app.js"></script>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>備份提醒網頁</title>
+</head>
+<body>
+  <h1>我的Github網頁</h1>
+  <p>當你關閉呢個網頁時，會提醒你備份。</p>
+
+  <script>
+    window.addEventListener("beforeunload", function (event) {
+      // 阻止默認行為
+      event.preventDefault();
+      // 某些瀏覽器需要設置 returnValue
+      event.returnValue = "記得備份資料！";
+    });
+  </script>
 </body>
 </html>
+
