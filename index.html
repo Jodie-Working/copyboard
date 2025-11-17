@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Copy Board</title>
+  <title>Copyboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="container">
-    <h1>Wokring Hard</h1>
+    <h1>Search</h1>
     <div class="controls">
       <input id="searchInput" type="text" placeholder="搜尋文字或標籤…" aria-label="搜尋">
       <button id="togglePinnedFirstBtn" type="button" class="btn">置頂優先：開</button>
@@ -17,7 +17,7 @@
         Input
         <input id="importFileInput" type="file" accept="application/json" hidden>
       </label>
-      <button id="clearAllBtn" type="button" class="btn btn-danger">清空全部</button>
+      <button id="clearAllBtn" type="button" class="btn btn-danger">Clear All</button>
     </div>
   </header>
 
@@ -27,17 +27,17 @@
       <div class="add-form">
         <input id="newTextInput" type="text" placeholder="輸入要複製的文字…" aria-label="文字">
         <input id="newTagsInput" type="text" placeholder="標籤（用逗號分隔，例如：工作,回覆）" aria-label="標籤">
-        <button id="addBtn" type="button" class="btn btn-primary">新增</button>
+        <button id="addBtn" type="button" class="btn btn-primary">ADD</button>
       </div>
     </section>
 
     <section>
-      <h2>標籤篩選</h2>
+      <h2>TAGS</h2>
       <div id="tagFilters" class="tag-filters"></div>
     </section>
 
     <section>
-      <h2>詞條列表</h2>
+      <h2>Copyboard</h2>
       <div id="itemsList" class="items"></div>
     </section>
   </main>
