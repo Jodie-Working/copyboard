@@ -1,4 +1,4 @@
-// app.js for Copy Board - stable version with modal edit and event delegation
+// app.js for Copy Board - added favorite/star functionality (delegation + modal edit)
 (() => {
   const STORAGE_KEY = 'copyBoard.items';
   const itemsEl = document.getElementById('items');
@@ -23,7 +23,16 @@
   function loadItems() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      // ensure each item has favorite boolean
+      return parsed.map(p => ({
+        id: p.id || uid(),
+        text: String(p.text || '').trim(),
+        tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
+        favorite: Boolean(p.favorite),
+        createdAt: p.createdAt || new Date().toISOString(),
+        updatedAt: p.updatedAt || ''
+      })).filter(i => i.text);
     } catch (e) {
       console.error('Load items failed', e);
       return [];
@@ -56,11 +65,21 @@
   function renderItems() {
     const q = searchInput.value.trim().toLowerCase();
     itemsEl.innerHTML = '';
+
+    // Filtering first
     const filtered = items.filter(item => {
       if (!q) return true;
       if (item.text && item.text.toLowerCase().includes(q)) return true;
       if ((item.tags || []).some(t => t.toLowerCase().includes(q))) return true;
       return false;
+    });
+
+    // Sort: favorites first, then newest first (createdAt)
+    filtered.sort((a, b) => {
+      if ((b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) !== 0) {
+        return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
     if (filtered.length === 0) {
@@ -73,6 +92,7 @@
       const col = node.querySelector('.item-col');
       const textP = node.querySelector('.item-text');
       const tagsDiv = node.querySelector('.item-tags');
+      const favBtn = node.querySelector('.favorite-btn');
 
       // attach id for delegation
       col.dataset.itemId = item.id;
@@ -80,19 +100,42 @@
       textP.textContent = item.text || '';
       tagsDiv.innerHTML = (item.tags || []).map(t => `<span class="badge bg-secondary me-1">${escapeHtml(t)}</span>`).join(' ');
 
+      // favorite button visual
+      if (favBtn) {
+        if (item.favorite) {
+          favBtn.textContent = '★';
+          favBtn.classList.add('favorited');
+          favBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          favBtn.textContent = '☆';
+          favBtn.classList.remove('favorited');
+          favBtn.setAttribute('aria-pressed', 'false');
+        }
+      }
+
       itemsEl.appendChild(node);
     });
   }
 
-  // Event delegation for copy / edit / delete
+  // Event delegation for copy / edit / delete / favorite
   itemsEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
     const col = btn.closest('.item-col');
     if (!col) return;
     const id = col.dataset.itemId;
-    const item = items.find(i => i.id === id);
-    if (!item) return;
+    const itemIndex = items.findIndex(i => i.id === id);
+    if (itemIndex === -1) return;
+    const item = items[itemIndex];
+
+    if (btn.classList.contains('favorite-btn')) {
+      // toggle favorite
+      items[itemIndex].favorite = !items[itemIndex].favorite;
+      items[itemIndex].updatedAt = new Date().toISOString();
+      saveItems();
+      renderItems();
+      return;
+    }
 
     if (btn.classList.contains('copy-btn')) {
       // Copy text
@@ -141,13 +184,13 @@
       bootstrapModal.hide();
       return;
     }
-    const newText = editText.value.trim();
-    if (!newText) {
+    const newTextVal = editText.value.trim();
+    if (!newTextVal) {
       alert('內容不能為空');
       return;
     }
     const newTags = parseTags(editTags.value);
-    items[idx].text = newText;
+    items[idx].text = newTextVal;
     items[idx].tags = newTags;
     items[idx].updatedAt = new Date().toISOString();
     saveItems();
@@ -163,7 +206,7 @@
       return;
     }
     const tags = parseTags(newTags.value);
-    const item = { id: uid(), text, tags, createdAt: new Date().toISOString() };
+    const item = { id: uid(), text, tags, favorite: false, createdAt: new Date().toISOString() };
     items.unshift(item);
     saveItems();
     newText.value = '';
@@ -207,6 +250,7 @@
           id: p.id || uid(),
           text: String(p.text || '').trim(),
           tags: Array.isArray(p.tags) ? p.tags.map(t => String(t)) : parseTags(p.tags || ''),
+          favorite: Boolean(p.favorite),
           createdAt: p.createdAt || new Date().toISOString()
         })).filter(i => i.text);
 
