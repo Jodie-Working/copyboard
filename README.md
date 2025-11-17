@@ -1,21 +1,38 @@
-```markdown
-# Copy Board
+# Copy Board — 常用語收藏
 
-一個簡單的「常用語收藏」單頁應用，支援新增 / 刪除 / 搜尋 / 複製，資料儲存在瀏覽器 localStorage，並支援匯出與匯入 JSON 做備份。
+簡介
+---
+Copy Board 是一個小型前端工具，把常用文字片段存在瀏覽器 localStorage，方便隨時複製、編輯、匯入/匯出 JSON 備份。
 
-使用方式
-1. 把 index.html、app.js、style.css 放到 repo 根目錄（或 GitHub Pages 的分支）。
-2. 開啟 index.html（或啟用 GitHub Pages 發佈後透過網頁存取）。
-3. 在「新增常用語」輸入框貼上文字，按「新增」或 Ctrl/Cmd+Enter 即可。
-4. 點「複製」把文字放到剪貼簿；點「刪除」移除項目；上方搜尋框可即時過濾。
-5. 可用「匯出 JSON」下載備份；用「匯入 JSON」把備份匯回（匯入會合併到現有項目最前）。
+功能
+---
+- 新增、編輯（Modal）、刪除項目
+- 複製到剪貼簿（Clipboard API）
+- 搜尋（文字與標籤）
+- 匯出 JSON、匯入 JSON（匯入會 prepend 到現有列表）
+- 清除所有
+- 項目存在 localStorage（key: `copyBoard.items`）
 
-部署到 GitHub Pages（簡單步驟）
-1. 將檔案 commit & push 到 main 或 gh-pages 分支。
-2. 在 GitHub Repo 設定 -> Pages，選擇 branch（main 或 gh-pages），按 Save。
-3. 幾分鐘後即可在提供的網站 URL 使用。
-
-自訂與延伸建議
-- 想要多人同步使用可加入簡單後端（例如 Node + SQLite 或 Firebase）來儲存。
-- 可加上編輯功能、排序（最常用、最近使用）或標籤篩選 UI。
+使用說明
+---
+1. 把三個檔案放同一個資料夾：`index.html`、`app.js`、`style.css`，然後在瀏覽器開啟 `index.html`。
+2. 按「新增」新增新條目，標籤用逗號分隔。
+3. 按「修改」可在彈窗編輯內容與標籤，按「儲存變更」後會更新並存回 localStorage。
+4. 按「複製」會把內容放到剪貼簿並短暫變色提示。
+5. 匯出會產生 JSON 檔案，匯入接受陣列格式的 JSON。範例：
+```json
+[
+  {"id":"abc","text":"範例文字","tags":["a","b"],"createdAt":"2025-01-01T00:00:00Z"}
+]
 ```
+6. 搜尋框會同時在內容與標籤中匹配。
+
+備註與建議
+---
+- 若想把匯入改為覆蓋而非 prepend，可在 `app.js` 的 import 部分調整 `items = sanitized.concat(items);` 為 `items = sanitized;`。
+- 若希望使用 modal 以外的 inline 編輯，也可以改用 `enterEditMode` 的方式。
+- 若要同步到雲端或跨裝置，需加後端 API 或同步到 GitHub Gist / Dropbox 等服務。
+
+授權
+---
+你可以自由修改、重用這個程式碼。
