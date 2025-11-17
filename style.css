@@ -10,6 +10,7 @@
   --badge-bg: #ffe6f2;
   --badge-color: #7a2a4a;
   --shadow: 0 8px 24px rgba(133,99,133,0.08);
+  --fav-gold: #ffc857;
 }
 
 /* Fonts */
@@ -93,6 +94,23 @@ body {
 .btn-group-vertical .btn {
   min-width: 78px;
   border-radius: 10px;
+}
+
+/* favorite button styles */
+.favorite-btn {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: #6c6c72;
+  min-width: 44px;
+  padding: .25rem .45rem;
+  border-radius: 10px;
+  font-size: 1.05rem;
+}
+.favorite-btn.favorited {
+  background: linear-gradient(90deg, var(--fav-gold), #ffb87a);
+  color: white;
+  border: none;
+  box-shadow: 0 6px 14px rgba(255,184,77,0.14);
 }
 
 /* Make vertical group more compact on small screens and stacked on xs */
