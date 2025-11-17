@@ -114,7 +114,7 @@ function renderTagFilters() {
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'btn';
-  clear.textContent = '清除已選標籤';
+  clear.textContent = 'Clear Selected';
   clear.addEventListener('click', () => {
     selectedTags.clear();
     render();
