@@ -105,7 +105,6 @@ function renderTagFilters() {
       if (selectedTags.has(t.key)) selectedTags.delete(t.key);
       else selectedTags.add(t.key);
       renderItems();
-      // keep filter UI in sync
       renderTagFilters();
     });
     tagFiltersEl.appendChild(btn);
@@ -139,7 +138,6 @@ function renderItems() {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
     }
-    // newest first
     return b.createdAt - a.createdAt;
   });
 
@@ -157,7 +155,8 @@ function renderItems() {
     header.className = 'card-header';
 
     const title = document.createElement('div');
-    title.innerHTML = `<div>${escapeHtml(it.text)}</div>
+    // 保留換行顯示
+    title.innerHTML = `<div>${escapeHtml(it.text).replace(/\n/g, '<br>')}</div>
                        <div class="text-muted small">${new Date(it.createdAt).toLocaleString()}</div>`;
 
     const starBtn = document.createElement('button');
@@ -184,153 +183,3 @@ function renderItems() {
       });
     } else {
       const no = document.createElement('span');
-      no.className = 'badge';
-      no.textContent = '無標籤';
-      tagsEl.appendChild(no);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'btn';
-    copyBtn.textContent = '複製';
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(it.text);
-        copyBtn.textContent = '已複製！';
-        setTimeout(() => (copyBtn.textContent = '複製'), 1000);
-      } catch (e) {
-        alert('複製失敗：' + e.message);
-      }
-    });
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn';
-    editBtn.textContent = '修改';
-    editBtn.addEventListener('click', () => {
-      const newText = prompt('請輸入新文字：', it.text);
-      if (newText == null) return;
-      const tagsStr = prompt('請輸入新標籤（逗號分隔）：', it.tags.join(','));
-      if (tagsStr == null) return;
-      const nextTags = tagsStr
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-      it.text = String(newText).trim();
-      it.tags = nextTags;
-      save();
-      render();
-    });
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn btn-danger';
-    deleteBtn.textContent = '刪除';
-    deleteBtn.addEventListener('click', () => {
-      if (!confirm('確認刪除此詞條？')) return;
-      items = items.filter(x => x.id !== it.id);
-      save();
-      render();
-    });
-
-    actions.appendChild(copyBtn);
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
-
-    card.appendChild(header);
-    card.appendChild(tagsEl);
-    card.appendChild(actions);
-
-    itemsListEl.appendChild(card);
-  });
-}
-
-// Events
-searchInput.addEventListener('input', e => {
-  searchText = e.target.value || '';
-  renderItems();
-});
-
-togglePinnedFirstBtn.addEventListener('click', () => {
-  pinnedFirst = !pinnedFirst;
-  togglePinnedFirstBtn.textContent = `置頂優先：${pinnedFirst ? '開' : '關'}`;
-  renderItems();
-});
-
-addBtn.addEventListener('click', () => {
-  const text = String(newTextInput.value || '').trim();
-  const tagsStr = String(newTagsInput.value || '').trim();
-
-  if (!text) {
-    alert('請輸入文字');
-    return;
-  }
-  const tags = tagsStr
-    ? tagsStr.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
-
-  const item = {
-    id: uuid(),
-    text,
-    tags,
-    pinned: false,
-    createdAt: Date.now()
-  };
-  items.unshift(item); // add to top
-  save();
-  newTextInput.value = '';
-  newTagsInput.value = '';
-  render();
-});
-
-clearAllBtn.addEventListener('click', () => {
-  if (!confirm('確定清空全部詞條？此操作不可復原。')) return;
-  items = [];
-  save();
-  render();
-});
-
-exportBtn.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `copyboard-backup-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-importFileInput.addEventListener('change', async e => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if (!Array.isArray(data)) throw new Error('JSON 需為陣列');
-    // 合併策略：保留現有 + 加入新（id 重複會覆蓋）
-    const byId = new Map(items.map(it => [it.id, it]));
-    data.forEach(it => {
-      const normalized = {
-        id: it.id ?? uuid(),
-        text: String(it.text ?? '').trim(),
-        tags: Array.isArray(it.tags) ? it.tags.map(t => String(t).trim()).filter(Boolean) : [],
-        pinned: Boolean(it.pinned),
-        createdAt: typeof it.createdAt === 'number' ? it.createdAt : Date.now()
-      };
-      byId.set(normalized.id, normalized);
-    });
-    items = Array.from(byId.values()).sort((a, b) => b.createdAt - a.createdAt);
-    save();
-    render();
-    importFileInput.value = ''; // reset
-    alert('匯入完成');
-  } catch (err) {
-    alert('匯入失敗：' + err.message);
-  }
-});
-
-// Init
-load();
-render();
