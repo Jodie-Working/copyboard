@@ -25,44 +25,5 @@
     <section>
       <h2>New</h2>
       <div class="add-form">
-        <input id="newTextInput" type="text" placeholder="輸入新的牛馬用語…" aria-label="文字">
-        <input id="newTagsInput" type="text" placeholder="標籤（用逗號分隔，例如：工作,回覆）" aria-label="標籤">
-        <button id="addBtn" type="button" class="btn btn-primary">ADD</button>
-      </div>
-    </section>
-
-    <section>
-      <h2>Tags</h2>
-      <div id="tagFilters" class="tag-filters"></div>
-    </section>
-
-    <section>
-      <h2>Copyboard</h2>
-      <div id="itemsList" class="items"></div>
-    </section>
-  </main>
-
-  <footer class="container footer">
-    <div class="text-muted small">請記得output backup，不過應該睇唔到呢段字ಠ⁠_⁠ಠ</div>
-  </footer>
-
-  <script src="app.js"></script>
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8">
-  <title>備份提醒網頁</title>
-</head>
-<body>
-  
-  <script>
-    window.addEventListener("beforeunload", function (event) {
-      // 阻止默認行為
-      event.preventDefault();
-      // 某些瀏覽器需要設置 returnValue
-      event.returnValue = "記得備份資料！";
-    });
-  </script>
-</body>
-</html>
-
+        <!-- 改成 textarea 支援分行 -->
+        <textarea id="newTextInput" placeholder="輸入新的牛馬用語…" aria-label="文字" rows="4"></textarea>
