@@ -155,8 +155,7 @@ function renderItems() {
     header.className = 'card-header';
 
     const title = document.createElement('div');
-    // 保留換行顯示
-    title.innerHTML = `<div>${escapeHtml(it.text).replace(/\n/g, '<br>')}</div>
+    title.innerHTML = `<div>${escapeHtml(it.text)}</div>
                        <div class="text-muted small">${new Date(it.createdAt).toLocaleString()}</div>`;
 
     const starBtn = document.createElement('button');
@@ -183,3 +182,5 @@ function renderItems() {
       });
     } else {
       const no = document.createElement('span');
+      no.className = 'badge';
+      no.textContent
